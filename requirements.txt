@@ -4,3 +4,4 @@ requests
 databricks-sdk
 psycopg2-binary
 sqlalchemy
+sentence-transformers
