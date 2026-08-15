@@ -77,11 +77,11 @@ def run_embedding_pipeline():
                 cur,
                 """
                 INSERT INTO weather_embeddings (
-                    id, 
-                    document_id, 
-                    chunk_index, 
-                    chunk_text, 
-                    embedding, 
+                    id,
+                    document_id,
+                    chunk_index,
+                    chunk_text,
+                    embedding,
                     model_name
                 )
                 VALUES %s
