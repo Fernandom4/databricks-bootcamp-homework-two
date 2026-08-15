@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+requests
+databricks-sdk
+psycopg2-binary
+sqlalchemy
