@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
 # MAGIC %md
 # MAGIC # Weather Embedding Pipeline
 # MAGIC Reads unembedded rows from `weather_documents`, chunks + embeds their
@@ -7,7 +11,9 @@
 # COMMAND ----------
 
 # DBTITLE 1,Install required packages
-# MAGIC %pip install -q sentence-transformers psycopg2-binary databricks-sdk
+# MAGIC %pip uninstall -y psycopg2 psycopg2-binary
+# MAGIC %pip install -q 'databricks-sdk>=0.118.0' sentence-transformers trafilatura requests pandas
+# MAGIC
 
 # COMMAND ----------
 
@@ -42,8 +48,8 @@ print("Resolved Lakebase connection URL.")
 
 # COMMAND ----------
 
-
 # DBTITLE 1,Chunking function
+
 def chunk_text(text, chunk_size, chunk_overlap):
     """Sliding-window character chunking."""
     text = text.strip()
