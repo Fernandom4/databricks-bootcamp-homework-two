@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 import json
 import lakebase
+from weather_client import WeatherClient
 
 
 app = FastAPI()
@@ -12,8 +13,14 @@ def healthz():
     return {"status": "ok"}
 
 
+class LocationInput(BaseModel):
+    lat: float
+    lon: float
+    label: str
+
+
 class SyncRequest(BaseModel):
-    locations: list[str]
+    locations: list[LocationInput]
     limit: int = Field(default=50, ge=1, le=200)
 
 
@@ -40,7 +47,7 @@ def _upsert_weather_batch(docs):
                                 headline = EXCLUDED.headline,
                                 issued_at = EXCLUDED.issued_at,
                                 payload = EXCLUDED.payload,
-                                synced_at = EXCLUDED.synced_at,
+                                synced_at = EXCLUDED.synced_at
                     """,
                     (
                         doc["id"],
@@ -55,3 +62,17 @@ def _upsert_weather_batch(docs):
                 count += 1
             conn.commit()
     return count
+
+
+@app.post("/weather/sync")
+def sync_weather(body: SyncRequest):
+    client = WeatherClient()
+    total_synced = 0
+
+    for location in body.locations:
+        docs = client.fetch_documents(
+            location.lat, location.lon, location.label, limit=body.limit
+        )
+        total_synced += _upsert_weather_batch(docs)
+
+    return {"synced": total_synced, "locations": [loc.label for loc in body.locations]}
