@@ -15,57 +15,66 @@ def healthz():
 
 def ensure_weather_documents_table():
     """Create weather_documents in Lakebase if it doesn't exist yet."""
-    lakebase.run_write(
-        """
-        CREATE TABLE IF NOT EXISTS weather_documents (
-            id TEXT PRIMARY KEY,
-            location TEXT NOT NULL,
-            source_type TEXT NOT NULL,
-            headline TEXT,
-            narrative_text TEXT NOT NULL,
-            issued_at TIMESTAMPTZ,
-            payload JSONB NOT NULL,
-            synced_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    try:
+        lakebase.run_write(
+            """
+            CREATE TABLE IF NOT EXISTS weather_documents (
+                id TEXT PRIMARY KEY,
+                location TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                headline TEXT,
+                narrative_text TEXT NOT NULL,
+                issued_at TIMESTAMPTZ,
+                payload JSONB NOT NULL,
+                synced_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
         )
-        """
-    )
-    lakebase.run_write(
-        """
-        CREATE INDEX IF NOT EXISTS idx_weather_documents_location
-        ON weather_documents (location)
-        """
-    )
+        lakebase.run_write(
+            """
+            CREATE INDEX IF NOT EXISTS idx_weather_documents_location
+            ON weather_documents (location)
+            """
+        )
+    except psycopg2.errors.InsufficientPrivilege:
+        # Table already exists, created manually under a different role.
+        # This app's role can read/write rows but isn't the owner, so
+        # DDL is skipped rather than failing the request.
+        pass
 
 
 def ensure_weather_embeddings_table():
     """Create weather_embeddings in Lakebase if it doesn't exist yet."""
-    lakebase.run_write("CREATE EXTENSION IF NOT EXISTS vector")
-    lakebase.run_write(
-        """
-        CREATE TABLE IF NOT EXISTS weather_embeddings (
-            id TEXT PRIMARY KEY,
-            document_id TEXT NOT NULL REFERENCES weather_documents (id),
-            chunk_index INT NOT NULL,
-            chunk_text TEXT NOT NULL,
-            embedding VECTOR(384) NOT NULL,
-            model_name TEXT NOT NULL,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    try:
+        lakebase.run_write("CREATE EXTENSION IF NOT EXISTS vector")
+        lakebase.run_write(
+            """
+            CREATE TABLE IF NOT EXISTS weather_embeddings (
+                id TEXT PRIMARY KEY,
+                document_id TEXT NOT NULL REFERENCES weather_documents (id),
+                chunk_index INT NOT NULL,
+                chunk_text TEXT NOT NULL,
+                embedding VECTOR(384) NOT NULL,
+                model_name TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
         )
-        """
-    )
-    lakebase.run_write(
-        """
-        CREATE INDEX IF NOT EXISTS idx_weather_embeddings_document_id
-        ON weather_embeddings (document_id)
-        """
-    )
-    lakebase.run_write(
-        """
-        CREATE INDEX IF NOT EXISTS idx_weather_embeddings_embedding
-        ON weather_embeddings
-        USING hnsw (embedding vector_cosine_ops)
-        """
-    )
+        lakebase.run_write(
+            """
+            CREATE INDEX IF NOT EXISTS idx_weather_embeddings_document_id
+            ON weather_embeddings (document_id)
+            """
+        )
+        lakebase.run_write(
+            """
+            CREATE INDEX IF NOT EXISTS idx_weather_embeddings_embedding
+            ON weather_embeddings
+            USING hnsw (embedding vector_cosine_ops)
+            """
+        )
+    except psycopg2.errors.InsufficientPrivilege:
+        pass
 
 
 class LocationInput(BaseModel):
