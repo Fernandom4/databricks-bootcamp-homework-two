@@ -133,3 +133,47 @@ def sync_weather(body: SyncRequest):
         total_synced += _upsert_weather_batch(docs)
 
     return {"synced": total_synced, "locations": [loc.label for loc in body.locations]}
+
+
+class SearchRequest(BaseModel):
+    query: str
+    top_k: int = Field(default=5, ge=1, le=20)
+
+
+_embedding_model = None
+EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+
+
+def get_embedding_model():
+    global _embedding_model
+    if _embedding_model is None:
+        from sentence_transformers import SentenceTransformer
+
+        _embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
+    return _embedding_model
+
+
+@app.post("/weather/search")
+def search_weather(body: SearchRequest):
+    ensure_weather_embeddings_table()
+
+    query = (body.query or "").strip()
+    if not query:
+        return {"query": query, "results": [], "error": "query must not be empty"}
+
+    model = get_embedding_model()
+    query_vector = model.encode(query).tolist()
+
+    rows = lakebase.run_query(
+        """
+        SELECT d.id, d.location, d.headline, d.narrative_text, e.chunk_text,
+               1 - (e.embedding <=> %s::vector) AS similarity
+        FROM weather_embeddings e
+        JOIN weather_documents d ON d.id = e.document_id
+        ORDER BY e.embedding <=> %s::vector
+        LIMIT %s
+        """,
+        (query_vector, query_vector, body.top_k),
+    )
+
+    return {"query": query, "results": rows}
