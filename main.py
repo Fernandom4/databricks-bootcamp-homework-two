@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 import json
 import lakebase
 from weather_client import WeatherClient
+import psycopg2
 
 
 app = FastAPI()
